@@ -1,101 +1,175 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+  }
+}
+
+
+
+import React, { useState, useEffect } from "react";
+import Sentiment from "sentiment";
+import { useRouter } from "next/navigation";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import app from "../firebase";
+
+const ChatbotPage = () => {
+  const [messages, setMessages] = useState([
+    { text: "Welcome! How can I assist you today?", sender: "bot" },
+  ]);
+  const [input, setInput] = useState("");
+  const [sentimentScore, setSentimentScore] = useState(null);
+  const router = useRouter();
+  const sentiment = new Sentiment();
+
+
+  useEffect(() => {
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/auth"); 
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+
+  const handleSendMessage = () => {
+    if (!input.trim()) return;
+
+    const userMessage = { text: input, sender: "user" };
+
+    const result = sentiment.analyze(input);
+    setSentimentScore(result.score);
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    
+    setTimeout(() => {
+      const botResponse =
+        result.score > 0
+          ? "I'm glad to hear that! How else can I help you?"
+          : result.score < 0
+          ? "I'm sorry to hear that. Can you provide more details?"
+          : "Thank you for sharing. What else can I assist with?";
+
+      setMessages((prev) => [
+        ...prev,
+        { text: botResponse, sender: "bot" },
+      ]);
+
+    
+      speak(botResponse);
+    }, 1000);
+
+    setInput("");
+  };
+
+  
+  const speak = (text: string) => {
+    if ("speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.error("Text-to-Speech is not supported in this browser.");
+    }
+  };
+  
+
+
+  const handleVoiceInput = () => {
+    if ("webkitSpeechRecognition" in window) {
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event: any) => {
+        const spokenText = event.results[0][0].transcript;
+        setInput(spokenText); 
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error("Speech Recognition Error:", event.error);
+      };
+      
+
+      recognition.start();
+    } else {
+      console.error("Speech Recognition is not supported in this browser.");
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+      <div className="w-full max-w-2xl bg-white rounded-lg shadow-md">
+        <div className="bg-blue-500 text-white py-4 px-6 rounded-t-lg">
+          <h1 className="text-xl font-semibold">AI Customer Support</h1>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div className="p-6 h-96 overflow-y-auto flex flex-col space-y-4" style={{ scrollBehavior: "smooth" }}>
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`${
+                  message.sender === "user"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-black"
+                } px-4 py-2 rounded-lg max-w-xs`}
+              >
+                {message.text}
+              </div>
+            </div>
+          ))}
+        </div>
+        {sentimentScore !== null && (
+          <div className="p-4 text-center">
+            <p>
+              Sentiment Score:{" "}
+              <span
+                className={`${
+                  sentimentScore > 0
+                    ? "text-green-500"
+                    : sentimentScore < 0
+                    ? "text-red-500"
+                    : "text-yellow-500"
+                }`}
+              >
+                {sentimentScore}
+              </span>
+            </p>
+          </div>
+        )}
+        <div className="flex items-center p-4 border-t border-gray-200">
+          <button
+            onClick={handleVoiceInput}
+            className="mr-4 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+          >
+            Speak
+          </button>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <button
+            onClick={handleSendMessage}
+            className="ml-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default ChatbotPage;
+
+
