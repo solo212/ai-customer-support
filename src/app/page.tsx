@@ -54,6 +54,9 @@ import { useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import app from "../firebase";
 
+// Import the Sign-Out Button
+import LogOutButton from "../components/LogOutButton";
+
 const ChatbotPage = () => {
   const [messages, setMessages] = useState([
     { text: "Welcome! How can I assist you today?", sender: "bot" },
@@ -67,7 +70,7 @@ const ChatbotPage = () => {
     const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
-        router.push("/auth"); 
+        router.push("/auth"); // Redirect to sign-in page if not authenticated
       }
     });
 
@@ -118,28 +121,28 @@ const ChatbotPage = () => {
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = "en-US";
-  
+
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const spokenText = event.results[0][0].transcript;
         setInput(spokenText);
       };
-  
+
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error("Speech Recognition Error:", event.error);
       };
-  
+
       recognition.start();
     } else {
       console.error("Speech Recognition is not supported in this browser.");
     }
   };
-  
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
       <div className="w-full max-w-2xl bg-white rounded-lg shadow-md">
-        <div className="bg-blue-500 text-white py-4 px-6 rounded-t-lg">
+        <div className="bg-blue-500 text-white py-4 px-6 rounded-t-lg flex justify-between items-center">
           <h1 className="text-xl font-semibold">AI Customer Support</h1>
+          <LogOutButton /> {/* Add the Sign-Out Button */}
         </div>
         <div className="p-6 h-96 overflow-y-auto flex flex-col space-y-4" style={{ scrollBehavior: "smooth" }}>
           {messages.map((message, index) => (
