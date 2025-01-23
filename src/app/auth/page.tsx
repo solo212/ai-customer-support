@@ -14,7 +14,7 @@ const AuthPage = () => {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.push("/"); // Redirect to main chatbot page on successful login
+        router.push("/"); 
       }
     });
 

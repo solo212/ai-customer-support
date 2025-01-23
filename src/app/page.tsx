@@ -1,12 +1,52 @@
 "use client";
 
-declare global {
-  interface Window {
-    webkitSpeechRecognition: any;
-  }
+// Define SpeechRecognition and related types manually
+interface SpeechRecognition {
+  new (): SpeechRecognitionInstance;
 }
 
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+}
 
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  [index: number]: SpeechRecognitionResult;
+  length: number;
+}
+
+interface SpeechRecognitionResult {
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+  length: number;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+// Extend the global window object
+declare global {
+  interface Window {
+    webkitSpeechRecognition: SpeechRecognition | undefined;
+  }
+}
 
 import React, { useState, useEffect } from "react";
 import Sentiment from "sentiment";
@@ -19,10 +59,9 @@ const ChatbotPage = () => {
     { text: "Welcome! How can I assist you today?", sender: "bot" },
   ]);
   const [input, setInput] = useState("");
-  const [sentimentScore, setSentimentScore] = useState(null);
+  const [sentimentScore, setSentimentScore] = useState<number | null>(null);
   const router = useRouter();
   const sentiment = new Sentiment();
-
 
   useEffect(() => {
     const auth = getAuth(app);
@@ -35,7 +74,6 @@ const ChatbotPage = () => {
     return () => unsubscribe();
   }, [router]);
 
-
   const handleSendMessage = () => {
     if (!input.trim()) return;
 
@@ -46,7 +84,6 @@ const ChatbotPage = () => {
 
     setMessages((prev) => [...prev, userMessage]);
 
-    
     setTimeout(() => {
       const botResponse =
         result.score > 0
@@ -60,14 +97,12 @@ const ChatbotPage = () => {
         { text: botResponse, sender: "bot" },
       ]);
 
-    
       speak(botResponse);
     }, 1000);
 
     setInput("");
   };
 
-  
   const speak = (text: string) => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -76,8 +111,6 @@ const ChatbotPage = () => {
       console.error("Text-to-Speech is not supported in this browser.");
     }
   };
-  
-
 
   const handleVoiceInput = () => {
     if ("webkitSpeechRecognition" in window) {
@@ -86,15 +119,14 @@ const ChatbotPage = () => {
       recognition.interimResults = false;
       recognition.lang = "en-US";
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         const spokenText = event.results[0][0].transcript;
         setInput(spokenText); 
       };
-      
-      recognition.onerror = (event: any) => {
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error("Speech Recognition Error:", event.error);
       };
-      
 
       recognition.start();
     } else {
@@ -171,5 +203,3 @@ const ChatbotPage = () => {
 };
 
 export default ChatbotPage;
-
-
