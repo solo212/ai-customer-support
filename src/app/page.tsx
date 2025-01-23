@@ -113,26 +113,27 @@ const ChatbotPage = () => {
   };
 
   const handleVoiceInput = () => {
-    if ("webkitSpeechRecognition" in window) {
+    if ("webkitSpeechRecognition" in window && window.webkitSpeechRecognition) {
       const recognition = new window.webkitSpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = "en-US";
-
+  
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const spokenText = event.results[0][0].transcript;
-        setInput(spokenText); 
+        setInput(spokenText);
       };
-
+  
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error("Speech Recognition Error:", event.error);
       };
-
+  
       recognition.start();
     } else {
       console.error("Speech Recognition is not supported in this browser.");
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
